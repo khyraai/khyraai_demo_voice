@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Khyra AI — Voice Demo</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0a0a0f;
+      --surface:    #13131a;
+      --surface2:   #1c1c27;
+      --border:     #2a2a3d;
+      --accent:     #7c6aff;
+      --accent2:    #a78bfa;
+      --accent-glow:rgba(124,106,255,0.25);
+      --text:       #f1f0ff;
+      --text-muted: #8887a8;
+      --success:    #4ade80;
+      --error:      #f87171;
+      --radius:     14px;
+      --radius-sm:  8px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── Background orbs ──────────────────────────────────────────────── */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(124,106,255,0.12), transparent 70%);
+      top: -120px; left: -100px;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(167,139,250,0.08), transparent 70%);
+      bottom: -80px; right: -80px;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+    }
+
+    /* ── Logo / Header ────────────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .logo {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--accent2);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .tagline {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Card ─────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.4);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+    .card-title span.step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      background: var(--accent);
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-right: 10px;
+    }
+
+    /* ── Role cards ───────────────────────────────────────────────────── */
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 480px) { .role-grid { grid-template-columns: 1fr; } }
+
+    .role-card {
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .15s;
+      user-select: none;
+    }
+    .role-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .role-card.selected {
+      border-color: var(--accent);
+      background: rgba(124,106,255,0.12);
+    }
+    .role-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .role-label { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+    .role-desc  { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+    /* ── Divider ──────────────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+    /* ── Row selectors ────────────────────────────────────────────────── */
+    .selector-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 480px) { .selector-row { grid-template-columns: 1fr; } }
+
+    .selector-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+    select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238887a8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    select:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+
+    /* ── Voice grid ───────────────────────────────────────────────────── */
+    .voice-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 480px) { .voice-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .voice-card {
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .15s;
+      user-select: none;
+    }
+    .voice-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .voice-card.selected {
+      border-color: var(--accent);
+      background: rgba(124,106,255,0.12);
+    }
+    .voice-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      margin: 0 auto 8px;
+    }
+    .voice-name { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+
+    /* ── Start button ─────────────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: opacity .2s, transform .15s;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── Demo panel ───────────────────────────────────────────────────── */
+    #demo-panel { display: none; }
+
+    .session-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .session-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .dot.error     { background: var(--error); }
+
+    /* ── Visualiser ───────────────────────────────────────────────────── */
+    .visualiser-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 80px;
+      margin-bottom: 20px;
+      gap: 3px;
+    }
+    .bar {
+      width: 4px;
+      border-radius: 2px;
+      background: var(--accent);
+      transition: height .08s ease;
+      min-height: 4px;
+    }
+
+    /* ── Mic button ───────────────────────────────────────────────────── */
+    .mic-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .mic-btn {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      color: var(--text-muted);
+      font-size: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .2s;
+      user-select: none;
+      touch-action: none;
+    }
+    .mic-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .mic-btn.recording {
+      background: rgba(124,106,255,0.18);
+      border-color: var(--accent);
+      color: var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .mic-btn.playing { border-color: var(--success); color: var(--success); }
+    .mic-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+      50%       { box-shadow: 0 0 0 14px transparent; }
+    }
+
+    .mic-hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+      min-height: 1.2em;
+    }
+
+    /* ── Transcript area ──────────────────────────────────────────────── */
+    .transcript-area {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      min-height: 140px;
+      max-height: 260px;
+      overflow-y: auto;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      scroll-behavior: smooth;
+    }
+    .transcript-area:empty::before {
+      content: "Your conversation will appear here...";
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .msg { margin-bottom: 10px; }
+    .msg:last-child { margin-bottom: 0; }
+    .msg-user { text-align: right; }
+    .msg-bubble {
+      display: inline-block;
+      padding: 8px 13px;
+      border-radius: 12px;
+      max-width: 88%;
+      word-break: break-word;
+    }
+    .msg-user .msg-bubble {
+      background: rgba(124,106,255,0.18);
+      color: var(--text);
+      border-bottom-right-radius: 3px;
+    }
+    .msg-ai .msg-bubble {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-bottom-left-radius: 3px;
+    }
+    .msg-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ── End session button ───────────────────────────────────────────── */
+    .btn-outline {
+      width: 100%;
+      padding: 11px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-outline:hover { border-color: var(--error); color: var(--error); }
+
+    /* ── Status toast ─────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 10px 20px;
+      font-size: 0.82rem;
+      color: var(--text);
+      transition: transform .3s ease, opacity .3s;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">✦ Khyra AI</div>
+    <div class="tagline">Experience our Voice AI — try a live demo</div>
+  </div>
+
+  <!-- Setup Card -->
+  <div class="card" id="setup-card">
+
+    <!-- Step 1: Role -->
+    <div class="card-title"><span class="step-num">1</span>Choose a role</div>
+    <div class="role-grid" id="role-grid">
+      <!-- Populated by JS -->
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Step 2 & 3 row -->
+    <div class="selector-row">
+      <div class="selector-group">
+        <div class="card-title" style="margin-bottom:10px;"><span class="step-num">2</span>Language</div>
+        <select id="lang-select"><!-- Populated by JS --></select>
+      </div>
+      <div class="selector-group">
+        <div class="card-title" style="margin-bottom:10px;"><span class="step-num">3</span>Voice</div>
+        <div class="voice-grid" id="voice-grid"><!-- Populated by JS --></div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="start-btn" onclick="startDemo()">Start Demo</button>
+  </div>
+
+  <!-- Demo Panel -->
+  <div class="card" id="demo-panel">
+
+    <!-- Session info bar -->
+    <div class="session-info">
+      <div class="session-badge">
+        <div class="dot" id="conn-dot"></div>
+        <span id="conn-label">Connecting…</span>
+      </div>
+      <div style="font-size:0.75rem; color:var(--text-muted)" id="session-meta"></div>
+    </div>
+
+    <!-- Audio visualiser bars -->
+    <div class="visualiser-wrap" id="visualiser">
+      <!-- JS fills bars -->
+    </div>
+
+    <!-- Mic button -->
+    <div class="mic-area">
+      <button class="mic-btn" id="mic-btn" disabled
+              onmousedown="startRecording()" onmouseup="stopRecording()"
+              ontouchstart="startRecording(event)" ontouchend="stopRecording(event)">
+        🎙️
+      </button>
+      <div class="mic-hint" id="mic-hint">Connecting to server…</div>
+    </div>
+
+    <!-- Transcript -->
+    <div class="transcript-area" id="transcript"></div>
+
+    <!-- End session -->
+    <button class="btn-outline" onclick="endSession()">End Session</button>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+/* ── State ──────────────────────────────────────────────────────────── */
+let config      = { voices: [], languages: [], roles: [] };
+let selectedRole     = null;
+let selectedVoiceId  = null;
+let selectedLang     = 'en-IN';
+
+let ws           = null;
+let mediaStream  = null;
+let audioCtx     = null;
+let scriptNode   = null;
+let isRecording  = false;
+let isPlaying    = false;
+let audioQueue   = [];
+let playbackActive = false;
+
+const WS_URL = `ws://${location.host}/ws`;
+
+/* ── Boot ───────────────────────────────────────────────────────────── */
+async function boot() {
+  try {
+    const r = await fetch('/config');
+    config = await r.json();
+  } catch(e) {
+    showToast('Could not load config from server. Is the backend running?', 5000);
+    return;
+  }
+  buildRoleGrid();
+  buildLangSelect();
+  buildVoiceGrid();
+}
+
+/* ── Role grid ──────────────────────────────────────────────────────── */
+function buildRoleGrid() {
+  const el = document.getElementById('role-grid');
+  el.innerHTML = '';
+  config.roles.forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'role-card';
+    d.dataset.id = r.id;
+    d.innerHTML = `<div class="role-icon">${r.icon}</div>
+                   <div class="role-label">${r.label}</div>
+                   <div class="role-desc">${r.description}</div>`;
+    d.onclick = () => selectRole(r.id);
+    el.appendChild(d);
+  });
+  if (config.roles.length) selectRole(config.roles[0].id);
+}
+
+function selectRole(id) {
+  selectedRole = id;
+  document.querySelectorAll('.role-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.id === id);
+  });
+}
+
+/* ── Language select ────────────────────────────────────────────────── */
+function buildLangSelect() {
+  const el = document.getElementById('lang-select');
+  el.innerHTML = '';
+  config.languages.forEach(l => {
+    const o = document.createElement('option');
+    o.value = l.code;
+    o.textContent = l.label;
+    if (l.code === 'en-IN') o.selected = true;
+    el.appendChild(o);
+  });
+  el.onchange = () => { selectedLang = el.value; };
+  selectedLang = el.value || 'en-IN';
+}
+
+/* ── Voice grid ─────────────────────────────────────────────────────── */
+const VOICE_EMOJIS = ['🧑', '👨', '👩', '🧔'];
+function buildVoiceGrid() {
+  const el = document.getElementById('voice-grid');
+  el.innerHTML = '';
+  config.voices.forEach((v, i) => {
+    const d = document.createElement('div');
+    d.className = 'voice-card';
+    d.dataset.id = v.id;
+    d.innerHTML = `<div class="voice-avatar">${VOICE_EMOJIS[i] || '🗣️'}</div>
+                   <div class="voice-name">${v.label}</div>`;
+    d.onclick = () => selectVoice(v.id);
+    el.appendChild(d);
+  });
+  if (config.voices.length) selectVoice(config.voices[0].id);
+}
+
+function selectVoice(id) {
+  selectedVoiceId = id;
+  document.querySelectorAll('.voice-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.id === id);
+  });
+}
+
+/* ── Visualiser bars ────────────────────────────────────────────────── */
+const BAR_COUNT = 22;
+function buildVisualiser() {
+  const el = document.getElementById('visualiser');
+  el.innerHTML = '';
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.style.height = '4px';
+    el.appendChild(b);
+  }
+}
+
+function animateBars(active, type = 'record') {
+  const bars = document.querySelectorAll('.bar');
+  bars.forEach((b, i) => {
+    if (!active) {
+      b.style.height = '4px';
+      b.style.background = 'var(--accent)';
+      return;
+    }
+    const color = type === 'play' ? 'var(--success)' : 'var(--accent)';
+    b.style.background = color;
+    const phase  = (i / BAR_COUNT) * Math.PI * 2;
+    const height = 8 + Math.abs(Math.sin(Date.now() / 200 + phase)) * 40;
+    b.style.height = height + 'px';
+  });
+}
+
+let _animFrame = null;
+function startBarAnimation(type) {
+  cancelAnimationFrame(_animFrame);
+  function loop() {
+    animateBars(true, type);
+    _animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+function stopBarAnimation() {
+  cancelAnimationFrame(_animFrame);
+  _animFrame = null;
+  animateBars(false);
+}
+
+/* ── Start demo ─────────────────────────────────────────────────────── */
+function startDemo() {
+  if (!selectedRole) { showToast('Please select a role first.'); return; }
+  document.getElementById('setup-card').style.display  = 'none';
+  document.getElementById('demo-panel').style.display  = 'block';
+  buildVisualiser();
+  connectWS();
+}
+
+/* ── WebSocket ──────────────────────────────────────────────────────── */
+function connectWS() {
+  setConnStatus('connecting');
+  ws = new WebSocket(WS_URL);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      type:     'init',
+      role:     selectedRole,
+      language: selectedLang,
+      voice_id: selectedVoiceId,
+    }));
+  };
+
+  ws.onmessage = (evt) => {
+    if (evt.data instanceof ArrayBuffer) {
+      audioQueue.push(evt.data);
+      if (!playbackActive) drainAudioQueue();
+      return;
+    }
+    try {
+      const msg = JSON.parse(evt.data);
+      handleServerMsg(msg);
+    } catch(e) { /* ignore */ }
+  };
+
+  ws.onclose  = () => { setConnStatus('disconnected'); setMicHint('Session ended.'); };
+  ws.onerror  = () => { setConnStatus('error'); };
+}
+
+function handleServerMsg(msg) {
+  switch (msg.type) {
+    case 'ready':
+      setConnStatus('connected');
+      setMicHint('Hold the button to speak');
+      document.getElementById('mic-btn').disabled = false;
+      document.getElementById('session-meta').textContent =
+        config.roles.find(r => r.id === selectedRole)?.label + ' · ' +
+        config.languages.find(l => l.code === selectedLang)?.label;
+      break;
+
+    case 'transcript':
+      appendMessage('user', msg.text);
+      setMicHint('Processing…');
+      break;
+
+    case 'response_text':
+      appendMessage('ai', msg.text);
+      setMicHint('Playing response…');
+      startBarAnimation('play');
+      isPlaying = true;
+      break;
+
+    case 'audio_end':
+      isPlaying = false;
+      stopBarAnimation();
+      setMicHint('Hold the button to speak');
+      break;
+
+    case 'error':
+      showToast('⚠️ ' + msg.message, 4000);
+      setMicHint('Hold the button to speak');
+      stopBarAnimation();
+      break;
+  }
+}
+
+/* ── Audio PCM playback ─────────────────────────────────────────────── */
+async function initAudioContext() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  }
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+}
+
+let _nextPlayTime = 0;
+
+async function drainAudioQueue() {
+  if (playbackActive) return;
+  playbackActive = true;
+  await initAudioContext();
+
+  while (audioQueue.length > 0) {
+    const raw = audioQueue.shift();
+    const pcm = new Int16Array(raw);
+    const floats = new Float32Array(pcm.length);
+    for (let i = 0; i < pcm.length; i++) floats[i] = pcm[i] / 32768;
+
+    const buf = audioCtx.createBuffer(1, floats.length, 16000);
+    buf.getChannelData(0).set(floats);
+
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    if (_nextPlayTime < now) _nextPlayTime = now;
+    src.start(_nextPlayTime);
+    _nextPlayTime += buf.duration;
+  }
+
+  playbackActive = false;
+}
+
+/* ── Recording ──────────────────────────────────────────────────────── */
+let _recorder = null;
+let _chunks   = [];
+
+async function startRecording(evt) {
+  if (evt && evt.cancelable) evt.preventDefault();
+  if (isRecording || isPlaying || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  await initAudioContext();
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: {
+      channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true,
+    }});
+  } catch(e) {
+    showToast('Microphone access denied. Please allow microphone usage.', 4000);
+    return;
+  }
+
+  const src = audioCtx.createMediaStreamSource(mediaStream);
+  scriptNode = audioCtx.createScriptProcessor(4096, 1, 1);
+  src.connect(scriptNode);
+  scriptNode.connect(audioCtx.destination);
+
+  scriptNode.onaudioprocess = (e) => {
+    if (!isRecording) return;
+    const floats = e.inputBuffer.getChannelData(0);
+    const pcm = new Int16Array(floats.length);
+    for (let i = 0; i < floats.length; i++) {
+      pcm[i] = Math.max(-32768, Math.min(32767, Math.round(floats[i] * 32768)));
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(pcm.buffer);
+  };
+
+  isRecording = true;
+  _nextPlayTime = 0;
+  audioQueue = [];
+  document.getElementById('mic-btn').classList.add('recording');
+  setMicHint('Recording… release to send');
+  startBarAnimation('record');
+}
+
+function stopRecording(evt) {
+  if (evt && evt.cancelable) evt.preventDefault();
+  if (!isRecording) return;
+  isRecording = false;
+
+  if (scriptNode) { scriptNode.disconnect(); scriptNode = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+
+  document.getElementById('mic-btn').classList.remove('recording');
+  stopBarAnimation();
+  setMicHint('Processing…');
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'audio_end' }));
+  }
+}
+
+/* ── Transcript ─────────────────────────────────────────────────────── */
+function appendMessage(sender, text) {
+  const el = document.getElementById('transcript');
+  const wrap = document.createElement('div');
+  wrap.className = `msg msg-${sender}`;
+
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = sender === 'user' ? 'You' : 'Khyra AI';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+
+  wrap.appendChild(label);
+  wrap.appendChild(bubble);
+  el.appendChild(wrap);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ── End session ────────────────────────────────────────────────────── */
+function endSession() {
+  stopRecording();
+  stopBarAnimation();
+  if (ws) { ws.close(); ws = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+
+  document.getElementById('demo-panel').style.display = 'none';
+  document.getElementById('setup-card').style.display = 'block';
+  document.getElementById('transcript').innerHTML     = '';
+  document.getElementById('mic-btn').disabled = true;
+}
+
+/* ── Helpers ────────────────────────────────────────────────────────── */
+function setConnStatus(state) {
+  const dot   = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  const map   = {
+    connecting:   ['',          'Connecting…'],
+    connected:    ['connected', 'Connected'],
+    disconnected: ['',          'Disconnected'],
+    error:        ['error',     'Connection error'],
+  };
+  const [cls, txt] = map[state] || ['', state];
+  dot.className   = 'dot ' + cls;
+  label.textContent = txt;
+}
+
+function setMicHint(txt) {
+  document.getElementById('mic-hint').textContent = txt;
+}
+
+let _toastTimer = null;
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+/* ── Init ───────────────────────────────────────────────────────────── */
+boot();
+</script>
+</body>
+</html>
