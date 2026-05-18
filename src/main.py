@@ -36,6 +36,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
+_SARVAM_API_KEY = lambda: os.getenv("SARVAM_API_KEY", "")
+
 load_dotenv()
 
 from llm import llm_pool, LLM_MODEL
@@ -160,7 +162,7 @@ async def demo_ws(websocket: WebSocket):
         wav = _pcm_to_wav(pcm_bytes)
         try:
             user_text, detected_lang = await asyncio.wait_for(
-                run_stt_http(wav, language_code=language, session_id=session_id, client_id="demo"),
+                run_stt_http(wav, _SARVAM_API_KEY(), language_code=language, session_id=session_id, client_id="demo"),
                 timeout=10.0,
             )
         except asyncio.TimeoutError:
