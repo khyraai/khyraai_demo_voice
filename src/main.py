@@ -43,7 +43,7 @@ load_dotenv()
 from llm import llm_pool, LLM_MODEL
 from stt import run_stt_http, pcm16_to_wav_bytes
 from tts import run_tts_stream_chunked, close_tts_http_clients
-from agents import get_system_prompt
+from agents import get_system_prompt, get_greeting
 from config import DEMO_VOICES, DEMO_LANGUAGES, DEMO_ROLES
 from utils import check_guardrails
 
@@ -113,6 +113,31 @@ def get_config():
         "languages": DEMO_LANGUAGES,
         "roles":     DEMO_ROLES,
     }
+
+
+# ---------------------------------------------------------------------------
+# Greeting helper
+# ---------------------------------------------------------------------------
+async def _send_greeting(ws: WebSocket, role: str, language: str, speaker: str):
+    """Stream the opening greeting TTS to the client immediately on connect."""
+    text = get_greeting(role)
+
+    async def _sb(b):
+        try: await ws.send_bytes(b)
+        except Exception: pass
+
+    async def _st(t):
+        try: await ws.send_text(t)
+        except Exception: pass
+
+    await _st(json.dumps({"type": "response_text", "text": text}))
+    try:
+        async for chunk in run_tts_stream_chunked(text, language=language, speaker=speaker, min_chunk_ms=200):
+            await _sb(chunk)
+    except Exception as e:
+        print(f"[GREETING] TTS error: {e}")
+    finally:
+        await _st(json.dumps({"type": "audio_end"}))
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +291,8 @@ async def demo_ws(websocket: WebSocket):
                     initialized = True
                     print(f"[WS:{session_id}] Init: role={role} lang={language} speaker={speaker}")
                     await safe_send_text(json.dumps({"type": "ready", "session_id": session_id}))
+                    asyncio.create_task(_send_greeting(websocket, role, language, speaker))
+
 
                 elif msg_type == "audio_end":
                     if len(audio_buffer) > 0:

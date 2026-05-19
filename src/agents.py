@@ -44,6 +44,16 @@ def get_system_prompt(role: str, language_code: str) -> str:
     return _APPOINTMENT_BOOKING_PROMPT + lang_instr
 
 
+def get_greeting(role: str) -> str:
+    """Return the opening line Khyra speaks at the start of a call."""
+    greetings = {
+        "appointment_booking": "Hi, this is Khyra! How may I help you today?",
+        "lead_followup":       "Hi, this is Khyra calling from Khyra AI — do you have a couple of minutes for a quick conversation?",
+        "tech_support":        "Hi, this is Khyra from IT support. How may I help you today?",
+    }
+    return greetings.get(role, "Hi, this is Khyra. How may I help you today?")
+
+
 # ---------------------------------------------------------------------------
 # Role prompts
 # ---------------------------------------------------------------------------
