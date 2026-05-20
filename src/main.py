@@ -43,7 +43,7 @@ load_dotenv()
 from llm import llm_pool, LLM_MODEL
 from stt import run_stt_http, pcm16_to_wav_bytes
 from tts import run_tts_stream_chunked, close_tts_http_clients
-from agents import get_system_prompt, get_greeting
+from prompts import get_system_prompt, get_greeting
 from config import DEMO_VOICES, DEMO_LANGUAGES, DEMO_ROLES
 from utils import check_guardrails
 
@@ -118,9 +118,9 @@ def get_config():
 # ---------------------------------------------------------------------------
 # Greeting helper
 # ---------------------------------------------------------------------------
-async def _send_greeting(ws: WebSocket, role: str, language: str, speaker: str):
+async def _send_greeting(ws: WebSocket, role: str, domain: str, language: str, speaker: str):
     """Stream the opening greeting TTS to the client immediately on connect."""
-    text = get_greeting(role)
+    text = get_greeting(role, domain)
 
     async def _sb(b):
         try: await ws.send_bytes(b)
@@ -149,7 +149,8 @@ async def demo_ws(websocket: WebSocket):
     session_id = str(uuid.uuid4())[:8]
     print(f"[WS:{session_id}] Connected")
 
-    role          = "appointment_booking"
+    role          = "front_desk"
+    domain        = "general_clinic"
     language      = "en-IN"
     voice_id      = DEMO_VOICES[0]["id"] if DEMO_VOICES else "voice_1"
     speaker       = _resolve_speaker(voice_id)
@@ -172,7 +173,7 @@ async def demo_ws(websocket: WebSocket):
             pass
 
     async def process_turn(pcm_bytes: bytes):
-        nonlocal memory, turns, role, language, speaker
+        nonlocal memory, turns, role, domain, language, speaker
 
         turns += 1
         if turns > _MAX_TURNS_PER_SESSION:
@@ -211,7 +212,7 @@ async def demo_ws(websocket: WebSocket):
             response_text = guard_resp
         else:
             # --- LLM ---
-            system_prompt = get_system_prompt(role, language)
+            system_prompt = get_system_prompt(role, domain, language)
             messages = [{"role": "system", "content": system_prompt}] + memory + [
                 {"role": "user", "content": user_text}
             ]
@@ -285,13 +286,14 @@ async def demo_ws(websocket: WebSocket):
 
                 if msg_type == "init":
                     role     = data.get("role",     role)
+                    domain   = data.get("domain",   domain)
                     language = data.get("language", language)
                     voice_id = data.get("voice_id", voice_id)
                     speaker  = _resolve_speaker(voice_id)
                     initialized = True
-                    print(f"[WS:{session_id}] Init: role={role} lang={language} speaker={speaker}")
+                    print(f"[WS:{session_id}] Init: role={role} domain={domain} lang={language} speaker={speaker}")
                     await safe_send_text(json.dumps({"type": "ready", "session_id": session_id}))
-                    asyncio.create_task(_send_greeting(websocket, role, language, speaker))
+                    asyncio.create_task(_send_greeting(websocket, role, domain, language, speaker))
 
 
                 elif msg_type == "audio_end":

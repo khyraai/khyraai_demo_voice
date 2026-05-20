@@ -50,6 +50,17 @@
     .role-label { font-size:.78rem; font-weight:600; }
     .role-desc  { font-size:.68rem; color:var(--muted); margin-top:3px; line-height:1.4; }
 
+    /* Domain section */
+    #domain-section { margin-top:16px; }
+    .domain-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    @media(max-width:480px){ .domain-grid { grid-template-columns:repeat(2,1fr); } }
+    .domain-card { background:var(--surface2); border:2px solid var(--border); border-radius:var(--rs); padding:11px 8px; text-align:center; cursor:pointer; transition:border-color .2s,background .2s,transform .15s; user-select:none; }
+    .domain-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+    .domain-card.selected { border-color:var(--accent); background:rgba(124,106,255,.12); }
+    .domain-icon  { font-size:1.2rem; margin-bottom:4px; }
+    .domain-label { font-size:.74rem; font-weight:600; }
+    .domain-desc  { font-size:.63rem; color:var(--muted); margin-top:2px; line-height:1.35; }
+
     /* Selector row */
     .selector-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
     @media(max-width:480px){ .selector-row { grid-template-columns:1fr; } }
@@ -136,15 +147,21 @@
     <div class="step-title"><span class="step-num">1</span>Choose a role</div>
     <div class="role-grid" id="role-grid"></div>
 
+    <div id="domain-section" style="display:none;">
+      <div class="divider"></div>
+      <div class="step-title"><span class="step-num">2</span>Specialisation</div>
+      <div class="domain-grid" id="domain-grid"></div>
+    </div>
+
     <div class="divider"></div>
 
     <div class="selector-row">
       <div class="selector-group">
-        <div class="step-title"><span class="step-num">2</span>Language</div>
+        <div class="step-title"><span class="step-num">3</span>Language</div>
         <select id="lang-select"></select>
       </div>
       <div>
-        <div class="step-title"><span class="step-num">3</span>Voice</div>
+        <div class="step-title"><span class="step-num">4</span>Voice</div>
         <div class="voice-grid" id="voice-grid"></div>
       </div>
     </div>
@@ -189,6 +206,7 @@ const BUFFER_CAP_BYTES = 5 * 16000 * 2; // 5s max buffer before forced send
 /* ── State ─────────────────────────────────────────────────────────── */
 let config = { voices:[], languages:[], roles:[] };
 let selectedRole    = null;
+let selectedDomain  = null;
 let selectedVoiceId = null;
 let selectedLang    = 'en-IN';
 
@@ -245,6 +263,31 @@ function buildRoleGrid() {
 function selectRole(id) {
   selectedRole = id;
   document.querySelectorAll('.role-card').forEach(c => c.classList.toggle('selected', c.dataset.id === id));
+  const role = config.roles.find(r => r.id === id);
+  if (role && role.domains && role.domains.length) {
+    buildDomainGrid(role.domains);
+    document.getElementById('domain-section').style.display = 'block';
+  } else {
+    document.getElementById('domain-section').style.display = 'none';
+    selectedDomain = null;
+  }
+}
+function buildDomainGrid(domains) {
+  const el = document.getElementById('domain-grid');
+  el.innerHTML = '';
+  selectedDomain = null;
+  domains.forEach(dom => {
+    const d = document.createElement('div');
+    d.className = 'domain-card'; d.dataset.id = dom.id;
+    d.innerHTML = `<div class="domain-icon">${dom.icon}</div><div class="domain-label">${dom.label}</div><div class="domain-desc">${dom.description}</div>`;
+    d.onclick = () => selectDomain(dom.id);
+    el.appendChild(d);
+  });
+  if (domains.length) selectDomain(domains[0].id);
+}
+function selectDomain(id) {
+  selectedDomain = id;
+  document.querySelectorAll('.domain-card').forEach(c => c.classList.toggle('selected', c.dataset.id === id));
 }
 
 function buildLangSelect() {
@@ -285,7 +328,8 @@ function buildWaveform() {
 
 /* ── Call flow ──────────────────────────────────────────────────────── */
 async function startCall() {
-  if (!selectedRole) { showToast('Please select a role first.'); return; }
+  if (!selectedRole)   { showToast('Please select a role first.'); return; }
+  if (!selectedDomain) { showToast('Please select a specialisation.'); return; }
 
   // Request mic early so we know if it's denied
   try {
@@ -300,9 +344,10 @@ async function startCall() {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('call-screen').style.display  = 'block';
 
-  const role  = config.roles.find(r => r.id === selectedRole);
-  const voice = config.voices.find(v => v.id === selectedVoiceId);
-  document.getElementById('call-role-label').textContent = role?.label || '';
+  const role   = config.roles.find(r => r.id === selectedRole);
+  const domain = role?.domains?.find(d => d.id === selectedDomain);
+  const voice  = config.voices.find(v => v.id === selectedVoiceId);
+  document.getElementById('call-role-label').textContent = domain ? `${role?.label || ''} — ${domain.label}` : (role?.label || '');
   document.getElementById('call-voice-label').textContent = `Voice: ${voice?.label || ''} · ${config.languages.find(l => l.code === selectedLang)?.label || ''}`;
 
   callActive = true;
@@ -318,7 +363,7 @@ function connectWS() {
   ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type:'init', role:selectedRole, language:selectedLang, voice_id:selectedVoiceId }));
+    ws.send(JSON.stringify({ type:'init', role:selectedRole, domain:selectedDomain, language:selectedLang, voice_id:selectedVoiceId }));
   };
 
   ws.onmessage = (evt) => {

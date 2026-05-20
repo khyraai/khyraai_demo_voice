@@ -25,6 +25,7 @@ import threading
 from typing import Any
 
 from groq import AsyncGroq
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,7 +34,18 @@ load_dotenv()
 # -----------------------------------------------------------------------
 # Configuration — all overridable via .env
 # -----------------------------------------------------------------------
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").strip().lower()  # "groq" | "sarvam"
+
+_SARVAM_BASE_URL = "https://api.sarvam.ai/v1"
+
+
 def _load_keys() -> list:
+    if LLM_PROVIDER == "sarvam":
+        key = os.getenv("SARVAM_API_KEY", "").strip()
+        if not key:
+            raise ValueError("LLM_PROVIDER=sarvam but SARVAM_API_KEY is not set in .env")
+        return [key]
+    # groq (default)
     raw = os.getenv("GROQ_API_KEYS", "").strip()
     if raw:
         keys = [k.strip() for k in raw.split(",") if k.strip()]
@@ -47,7 +59,19 @@ def _load_keys() -> list:
     )
 
 
-LLM_MODEL                  = os.getenv("LLM_MODEL",                    "llama-3.3-70b-versatile")
+def _default_model() -> str:
+    if LLM_PROVIDER == "sarvam":
+        return os.getenv("LLM_MODEL_SARVAM", "sarvam-m")
+    return os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+
+
+def _make_client(api_key: str):
+    if LLM_PROVIDER == "sarvam":
+        return AsyncOpenAI(base_url=_SARVAM_BASE_URL, api_key=api_key)
+    return AsyncGroq(api_key=api_key)
+
+
+LLM_MODEL                  = _default_model()
 LLM_MAX_CONCURRENT_PER_KEY = int(os.getenv("LLM_MAX_CONCURRENT_PER_KEY", "5"))
 LLM_MAX_RETRIES            = int(os.getenv("LLM_MAX_RETRIES",            "2"))
 LLM_RETRY_DELAY_SEC        = float(os.getenv("LLM_RETRY_DELAY_SEC",      "0.3"))
@@ -143,15 +167,15 @@ class LLMPool:
 
     def __init__(self):
         self._keys    = _load_keys()
-        self._clients = [AsyncGroq(api_key=k) for k in self._keys]
+        self._clients = [_make_client(k) for k in self._keys]
         self._sems    = [asyncio.Semaphore(LLM_MAX_CONCURRENT_PER_KEY) for _ in self._keys]
         self._cycle   = itertools.cycle(range(len(self._keys)))
         self._lock    = asyncio.Lock()
         self.chat     = _Chat(self)
         print(
-            f"[LLM Pool] ✅ {len(self._keys)} key(s) loaded | "
+            f"[LLM Pool] ✅ provider={LLM_PROVIDER} | {len(self._keys)} key(s) | "
             f"{LLM_MAX_CONCURRENT_PER_KEY} concurrent/key | "
-            f"max retries={LLM_MAX_RETRIES} | default model={LLM_MODEL}"
+            f"max retries={LLM_MAX_RETRIES} | model={LLM_MODEL}"
         )
 
     @property

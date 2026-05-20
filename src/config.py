@@ -1,12 +1,15 @@
 """
-config.py — Demo configuration: voices and languages.
+config.py — Demo configuration: voices, languages, and two-level roles.
 
 Voices are configurable via .env:
-    DEMO_VOICE_1_NAME   = Display name  (default: "Voice 1")
-    DEMO_VOICE_1_SPEAKER = Sarvam speaker slug  (default: "meera")
+    DEMO_VOICE_1_NAME    = Display name  (default: "Priya")
+    DEMO_VOICE_1_SPEAKER = Sarvam speaker slug  (default: "priya")
     ...repeated for DEMO_VOICE_2, DEMO_VOICE_3, DEMO_VOICE_4
 
 Languages are a fixed list of Sarvam-supported Indian languages + English.
+
+Roles are two-level: each primary role has a list of domain specialisations.
+The UI uses this to drive the two-step role → domain selection flow.
 """
 
 import os
@@ -42,23 +45,111 @@ DEMO_LANGUAGES: list[dict] = [
     {"code": "od-IN", "label": "Odia"},
 ]
 
+# ---------------------------------------------------------------------------
+# Two-level role structure
+# Each primary role contains a list of domain specialisations.
+# ---------------------------------------------------------------------------
 DEMO_ROLES: list[dict] = [
     {
-        "id":          "appointment_booking",
-        "label":       "Appointment Booking",
-        "description": "Schedule, reschedule, or cancel appointments",
-        "icon":        "📅",
+        "id":          "front_desk",
+        "label":       "Front Desk",
+        "description": "Reception & appointment management",
+        "icon":        "🏥",
+        "domains": [
+            {
+                "id":          "dental_clinic",
+                "label":       "Dental Clinic",
+                "description": "Cleanings, braces, root canals & more",
+                "icon":        "🦷",
+            },
+            {
+                "id":          "veterinary_clinic",
+                "label":       "Veterinary Clinic",
+                "description": "Pet health appointments & checkups",
+                "icon":        "🐾",
+            },
+            {
+                "id":          "spa_salon",
+                "label":       "Spa & Salon",
+                "description": "Treatments, packages & bookings",
+                "icon":        "💆",
+            },
+            {
+                "id":          "therapist_clinic",
+                "label":       "Therapist & Wellness",
+                "description": "Counselling & wellness consultations",
+                "icon":        "🧘",
+            },
+            {
+                "id":          "hotel_resort",
+                "label":       "Hotel & Resort",
+                "description": "Reservations, check-in & amenities",
+                "icon":        "🏨",
+            },
+            {
+                "id":          "cosmetic_clinic",
+                "label":       "Cosmetic Clinic",
+                "description": "Aesthetic treatments & consultations",
+                "icon":        "✨",
+            },
+            {
+                "id":          "general_clinic",
+                "label":       "General Clinic",
+                "description": "Multispecialty consultations & bookings",
+                "icon":        "🩺",
+            },
+        ],
     },
     {
         "id":          "lead_followup",
         "label":       "Lead Follow-Up",
-        "description": "Qualify and follow up with prospects",
+        "description": "Consultative outbound sales",
         "icon":        "📞",
+        "domains": [
+            {
+                "id":          "ai_voice_services",
+                "label":       "AI Voice Services",
+                "description": "Selling Khyra AI voice solutions",
+                "icon":        "🤖",
+            },
+            {
+                "id":          "real_estate",
+                "label":       "Real Estate",
+                "description": "Property enquiries & site visits",
+                "icon":        "🏠",
+            },
+            {
+                "id":          "it_projects",
+                "label":       "IT Projects",
+                "description": "Software, automation & AI consulting",
+                "icon":        "�",
+            },
+        ],
     },
     {
-        "id":          "tech_support",
-        "label":       "Tech Support",
-        "description": "Assist customers with technical issues",
+        "id":          "support_line",
+        "label":       "Support Line",
+        "description": "Enterprise technical support desk",
         "icon":        "🛠️",
+        "domains": [
+            {
+                "id":          "devops_support",
+                "label":       "DevOps Support",
+                "description": "CI/CD, Docker, K8s & cloud infra",
+                "icon":        "⚙️",
+            },
+            {
+                "id":          "access_management_support",
+                "label":       "Access Management",
+                "description": "Login, MFA, permissions & VPN",
+                "icon":        "🔐",
+            },
+            {
+                "id":          "saas_product_support",
+                "label":       "SaaS Product Support",
+                "description": "Billing, onboarding & integrations",
+                "icon":        "�",
+            },
+        ],
     },
 ]
