@@ -132,6 +132,7 @@ COMMON FIRST STEPS:
 - Billing error → note the amount, date, and description; escalate to billing team
 - Integration not working → check connected account status, re-authenticate, verify webhook config
 - Bug → get steps to reproduce, browser/OS, screenshot if possible; log and confirm timeline
+- Outage or "is there a known issue?" → "Let me check — if there's a known incident our team will have flagged it. I'll look into that and get back to you, or check our status page at status.[yourproduct].com for live updates."
 """.strip()
 
 # ---------------------------------------------------------------------------
