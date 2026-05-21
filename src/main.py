@@ -223,15 +223,21 @@ async def demo_ws(websocket: WebSocket):
                     llm_pool.chat.completions.create(
                         model=LLM_MODEL,
                         messages=messages,
-                        max_tokens=150,
+                        max_tokens=700,
                         temperature=0.7,
                         _agent_name="demo",
                         _client_id="demo",
                     ),
-                    timeout=15.0,
+                    timeout=20.0,
                 )
                 response_text = completion.choices[0].message.content.strip()
-                response_text = re.sub(r"<think>[\s\S]*?</think>", "", response_text, flags=re.IGNORECASE).strip()
+                # Strip complete <think>...</think> blocks (reasoning models like sarvam-m)
+                response_text = re.sub(r"<think>[\s\S]*?</think>\s*", "", response_text, flags=re.IGNORECASE).strip()
+                # Strip incomplete/truncated <think> block (no closing tag — token limit hit mid-think)
+                response_text = re.sub(r"<think>[\s\S]*", "", response_text, flags=re.IGNORECASE).strip()
+                # If stripping left nothing, give a safe fallback
+                if not response_text:
+                    response_text = "I'm sorry, could you repeat that?"
             except asyncio.TimeoutError:
                 await safe_send_text(json.dumps({"type": "error", "message": "LLM timeout"}))
                 return
