@@ -22,6 +22,7 @@ WebSocket protocol (server → client):
 """
 
 import os
+import re
 import io
 import wave
 import json
@@ -230,6 +231,7 @@ async def demo_ws(websocket: WebSocket):
                     timeout=15.0,
                 )
                 response_text = completion.choices[0].message.content.strip()
+                response_text = re.sub(r"<think>[\s\S]*?</think>", "", response_text, flags=re.IGNORECASE).strip()
             except asyncio.TimeoutError:
                 await safe_send_text(json.dumps({"type": "error", "message": "LLM timeout"}))
                 return
