@@ -14,21 +14,21 @@ import random
 _FRONT_DESK_GREETINGS: dict[str, list[str]] = {
     "dental_clinic": [
         "Hi, you've reached the front desk — how can I help you today?",
-        "Good day, this is Khyra at the dental clinic. What can I do for you?",
+        "Hello, this is Khyra at the dental clinic. What can I do for you?",
         "Hi there, Khyra speaking — are you calling to book an appointment?",
-        "Hello, this is the clinic's front desk. How may I assist you?",
+        "Hello, this is the clinic's front desk. How can I help?",
     ],
     "veterinary_clinic": [
         "Hi, this is Khyra at the vet clinic — how can I help you and your pet today?",
         "Hello, you've reached the veterinary clinic. What can I help you with?",
         "Hi there, Khyra speaking — is everything okay with your little one?",
-        "Good day, this is the vet's front desk. How can I assist you?",
+        "Hello, this is the vet's front desk. How can I help?",
     ],
     "spa_salon": [
-        "Hi, this is Khyra at the spa — how may I help you today?",
+        "Hi, this is Khyra at the spa — how can I help you today?",
         "Hello, welcome to our salon. What can I do for you?",
         "Hi there, Khyra speaking — are you looking to book a treatment?",
-        "Good day, you've reached our front desk. How can we take care of you today?",
+        "Hello, you've reached our front desk. How can we take care of you today?",
     ],
     "therapist_clinic": [
         "Hi, this is Khyra — you've reached the wellness clinic. How can I help?",
@@ -46,13 +46,13 @@ _FRONT_DESK_GREETINGS: dict[str, list[str]] = {
         "Hi, this is Khyra at the clinic — how can I help you today?",
         "Hello, you've reached our aesthetic centre. Khyra speaking.",
         "Hi there — are you calling to book a consultation or a treatment session?",
-        "Good day, this is Khyra. How can I assist you today?",
+        "Hello, this is Khyra. How can I help you today?",
     ],
     "general_clinic": [
-        "Hi, this is Khyra at the clinic — how may I help you?",
+        "Hi, this is Khyra at the clinic — how can I help you?",
         "Hello, you've reached the front desk. Khyra speaking.",
         "Hi there — are you calling to book an appointment or make an enquiry?",
-        "Good day, this is Khyra. What can I do for you today?",
+        "Hello, this is Khyra. What can I do for you today?",
     ],
 }
 

@@ -70,8 +70,8 @@
     select option { background:var(--surface2); }
 
     /* Voice grid */
-    .voice-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-    @media(max-width:480px){ .voice-grid { grid-template-columns:repeat(2,1fr); } }
+    .voice-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; max-height:180px; overflow-y:auto; padding-right:2px; }
+    @media(max-width:480px){ .voice-grid { grid-template-columns:repeat(3,1fr); } }
     .voice-card { background:var(--surface2); border:2px solid var(--border); border-radius:var(--rs); padding:10px 6px; text-align:center; cursor:pointer; transition:border-color .2s,background .2s,transform .15s; user-select:none; }
     .voice-card:hover { border-color:var(--accent); transform:translateY(-2px); }
     .voice-card.selected { border-color:var(--accent); background:rgba(124,106,255,.12); }
@@ -248,7 +248,7 @@ async function boot() {
 }
 
 /* ── Setup UI ───────────────────────────────────────────────────────── */
-const VOICE_EMOJIS = ['👩','👩','👨','👨'];
+const VOICE_EMOJIS = ['👩','👩','👩','👩','👩','👨','👨','👨','👨','👨'];
 function buildRoleGrid() {
   const el = document.getElementById('role-grid');
   config.roles.forEach(r => {

@@ -4,7 +4,7 @@ config.py — Demo configuration: voices, languages, and two-level roles.
 Voices are configurable via .env:
     DEMO_VOICE_1_NAME    = Display name  (default: "Priya")
     DEMO_VOICE_1_SPEAKER = Sarvam speaker slug  (default: "priya")
-    ...repeated for DEMO_VOICE_2, DEMO_VOICE_3, DEMO_VOICE_4
+    ...repeated for DEMO_VOICE_2 through DEMO_VOICE_10
 
 Languages are a fixed list of Sarvam-supported Indian languages + English.
 
@@ -25,10 +25,16 @@ def _voice(idx: int, default_name: str, default_speaker: str) -> dict:
 
 
 DEMO_VOICES: list[dict] = [
-    _voice(1, "Priya",  "priya"),
-    _voice(2, "Kavya",  "kavya"),
-    _voice(3, "Rahul",  "rahul"),
-    _voice(4, "Rohan",  "rohan"),
+    _voice(1,  "Priya",   "priya"),
+    _voice(2,  "Kavya",   "kavya"),
+    _voice(3,  "Neha",    "neha"),
+    _voice(4,  "Simran",  "simran"),
+    _voice(5,  "Pooja",   "pooja"),
+    _voice(6,  "Rahul",   "rahul"),
+    _voice(7,  "Rohan",   "rohan"),
+    _voice(8,  "Aditya",  "aditya"),
+    _voice(9,  "Amit",    "amit"),
+    _voice(10, "Ratan",   "ratan"),
 ]
 
 DEMO_LANGUAGES: list[dict] = [
