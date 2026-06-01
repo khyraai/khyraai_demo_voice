@@ -44,9 +44,10 @@ load_dotenv()
 from llm import llm_pool, LLM_MODEL
 from stt import run_stt_http, pcm16_to_wav_bytes
 from tts import run_tts_stream_chunked, close_tts_http_clients
-from prompts import get_system_prompt, get_greeting
-from config import DEMO_VOICES, DEMO_LANGUAGES, DEMO_ROLES
-from utils import check_guardrails
+from prompts            import get_system_prompt, get_greeting
+from config             import DEMO_VOICES, DEMO_LANGUAGES, DEMO_ROLES
+from utils              import check_guardrails
+from transcript_logger  import make_logger
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -120,9 +121,11 @@ def get_config():
 # ---------------------------------------------------------------------------
 # Greeting helper
 # ---------------------------------------------------------------------------
-async def _send_greeting(ws: WebSocket, role: str, domain: str, language: str, speaker: str, voice_label: str = "Khyra"):
+async def _send_greeting(ws: WebSocket, role: str, domain: str, language: str, speaker: str, voice_label: str = "Khyra", tx_log=None):
     """Stream the opening greeting TTS to the client immediately on connect."""
     text = get_greeting(role, domain, language, voice_label)
+    if tx_log is not None:
+        tx_log.log_greeting(text)
 
     async def _sb(b):
         try: await ws.send_bytes(b)
@@ -157,6 +160,7 @@ async def demo_ws(websocket: WebSocket):
     voice_id      = DEMO_VOICES[0]["id"] if DEMO_VOICES else "voice_1"
     speaker       = _resolve_speaker(voice_id)
     voice_label   = _VOICE_LABEL_MAP.get(voice_id, "Khyra")
+    tx_log        = None
     memory: list  = []
     turns         = 0
     audio_buffer  = bytearray()
@@ -255,6 +259,8 @@ async def demo_ws(websocket: WebSocket):
         if len(memory) > 20:
             memory = memory[-20:]
 
+        if tx_log is not None:
+            tx_log.log_turn(turns, user_text, response_text)
         await safe_send_text(json.dumps({"type": "response_text", "text": response_text}))
 
         # --- TTS ---
@@ -302,9 +308,10 @@ async def demo_ws(websocket: WebSocket):
                     speaker     = _resolve_speaker(voice_id)
                     voice_label = _VOICE_LABEL_MAP.get(voice_id, "Khyra")
                     initialized = True
+                    tx_log      = make_logger(session_id, role, domain, language, voice_label)
                     print(f"[WS:{session_id}] Init: role={role} domain={domain} lang={language} speaker={speaker} voice={voice_label}")
                     await safe_send_text(json.dumps({"type": "ready", "session_id": session_id}))
-                    asyncio.create_task(_send_greeting(websocket, role, domain, language, speaker, voice_label))
+                    asyncio.create_task(_send_greeting(websocket, role, domain, language, speaker, voice_label, tx_log))
 
 
                 elif msg_type == "audio_end":
