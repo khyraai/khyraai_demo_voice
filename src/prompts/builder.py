@@ -18,11 +18,16 @@ from .shared import (
     SHARED_IDENTITY,
     language_instruction,
 )
-from .greetings import get_greeting  # noqa: F401 — re-exported
+from .greetings import get_greeting as _greetings_get_greeting
 
-from . import front_desk   as _fd
+from . import front_desk    as _fd
 from . import lead_followup as _lf
 from . import support_line  as _sl
+
+
+def get_greeting(role: str, domain: str, language_code: str = "en-IN", voice_name: str = "Khyra") -> str:
+    """Delegate to greetings.get_greeting with language and voice_name support."""
+    return _greetings_get_greeting(role, domain, language_code, voice_name)
 
 
 # ---------------------------------------------------------------------------
@@ -46,15 +51,16 @@ _SHARED_BLOCKS = [
 ]
 
 
-def build_prompt(role: str, domain: str, language_code: str) -> str:
+def build_prompt(role: str, domain: str, language_code: str, voice_name: str = "Khyra") -> str:
     """
-    Assemble the full system prompt for a given role + domain + language.
+    Assemble the full system prompt for a given role + domain + language + voice_name.
 
     Assembly order:
       1. Role base behavior
       2. Domain-specific context
       3. Shared realism/behavioral blocks
       4. Language instruction
+      5. {voice_name} placeholder substitution
     """
     if role not in _ROLE_REGISTRY:
         role = "front_desk"
@@ -69,5 +75,6 @@ def build_prompt(role: str, domain: str, language_code: str) -> str:
     sections = [base, domain_fragment] + _SHARED_BLOCKS
     prompt = "\n\n".join(s.strip() for s in sections if s.strip())
     prompt += language_instruction(language_code)
+    prompt = prompt.replace("{voice_name}", voice_name)
 
     return prompt

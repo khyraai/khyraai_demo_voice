@@ -71,7 +71,8 @@ _MAX_TURNS_PER_SESSION    = int(os.getenv("DEMO_MAX_TURNS", "20"))
 # ---------------------------------------------------------------------------
 # Voice lookup helper
 # ---------------------------------------------------------------------------
-_VOICE_MAP = {v["id"]: v["speaker"] for v in DEMO_VOICES}
+_VOICE_MAP       = {v["id"]: v["speaker"] for v in DEMO_VOICES}
+_VOICE_LABEL_MAP = {v["id"]: v["label"]   for v in DEMO_VOICES}
 
 
 def _resolve_speaker(voice_id: str) -> str:
@@ -119,9 +120,9 @@ def get_config():
 # ---------------------------------------------------------------------------
 # Greeting helper
 # ---------------------------------------------------------------------------
-async def _send_greeting(ws: WebSocket, role: str, domain: str, language: str, speaker: str):
+async def _send_greeting(ws: WebSocket, role: str, domain: str, language: str, speaker: str, voice_label: str = "Khyra"):
     """Stream the opening greeting TTS to the client immediately on connect."""
-    text = get_greeting(role, domain)
+    text = get_greeting(role, domain, language, voice_label)
 
     async def _sb(b):
         try: await ws.send_bytes(b)
@@ -155,6 +156,7 @@ async def demo_ws(websocket: WebSocket):
     language      = "en-IN"
     voice_id      = DEMO_VOICES[0]["id"] if DEMO_VOICES else "voice_1"
     speaker       = _resolve_speaker(voice_id)
+    voice_label   = _VOICE_LABEL_MAP.get(voice_id, "Khyra")
     memory: list  = []
     turns         = 0
     audio_buffer  = bytearray()
@@ -174,7 +176,7 @@ async def demo_ws(websocket: WebSocket):
             pass
 
     async def process_turn(pcm_bytes: bytes):
-        nonlocal memory, turns, role, domain, language, speaker
+        nonlocal memory, turns, role, domain, language, speaker, voice_label
 
         turns += 1
         if turns > _MAX_TURNS_PER_SESSION:
@@ -213,7 +215,7 @@ async def demo_ws(websocket: WebSocket):
             response_text = guard_resp
         else:
             # --- LLM ---
-            system_prompt = get_system_prompt(role, domain, language)
+            system_prompt = get_system_prompt(role, domain, language, voice_label)
             messages = [{"role": "system", "content": system_prompt}] + memory + [
                 {"role": "user", "content": user_text}
             ]
@@ -296,12 +298,13 @@ async def demo_ws(websocket: WebSocket):
                     role     = data.get("role",     role)
                     domain   = data.get("domain",   domain)
                     language = data.get("language", language)
-                    voice_id = data.get("voice_id", voice_id)
-                    speaker  = _resolve_speaker(voice_id)
+                    voice_id    = data.get("voice_id", voice_id)
+                    speaker     = _resolve_speaker(voice_id)
+                    voice_label = _VOICE_LABEL_MAP.get(voice_id, "Khyra")
                     initialized = True
-                    print(f"[WS:{session_id}] Init: role={role} domain={domain} lang={language} speaker={speaker}")
+                    print(f"[WS:{session_id}] Init: role={role} domain={domain} lang={language} speaker={speaker} voice={voice_label}")
                     await safe_send_text(json.dumps({"type": "ready", "session_id": session_id}))
-                    asyncio.create_task(_send_greeting(websocket, role, domain, language, speaker))
+                    asyncio.create_task(_send_greeting(websocket, role, domain, language, speaker, voice_label))
 
 
                 elif msg_type == "audio_end":
