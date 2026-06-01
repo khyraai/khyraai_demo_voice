@@ -1,7 +1,19 @@
 """
 transcript_logger.py — Session transcript file logger for test runs.
 
-Creates one JSON log per WebSocket session under /logs/.
+All sessions in a test run are appended to ONE shared file:
+    logs/test_run_YYYYMMDD_HHMMSS.json
+
+Structure:
+    {
+      "test_run": "<iso timestamp>",
+      "sessions": [
+        { session 1 (front_desk) ... },
+        { session 2 (support_line) ... },
+        { session 3 (lead_followup) ... }
+      ]
+    }
+
 Only active when TEST_LOGGING=true in the environment.
 """
 
@@ -10,14 +22,38 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-_ENABLED = os.getenv("TEST_LOGGING", "false").lower() in ("1", "true", "yes")
+_ENABLED  = os.getenv("TEST_LOGGING", "false").lower() in ("1", "true", "yes")
 _LOGS_DIR = Path(__file__).parent.parent / "logs"
+
+# Shared file for the entire test run — created on first session, reused for all.
+_RUN_FILE: "Path | None" = None
+
+
+def _get_run_file() -> Path:
+    global _RUN_FILE
+    if _RUN_FILE is None:
+        _LOGS_DIR.mkdir(exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        _RUN_FILE = _LOGS_DIR / f"test_run_{ts}.json"
+        _write({"test_run": datetime.now().isoformat(), "sessions": []})
+        print(f"[TRANSCRIPT_LOG] Test run file: {_RUN_FILE}")
+    return _RUN_FILE
+
+
+def _read() -> dict:
+    with open(_get_run_file(), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _write(data: dict) -> None:
+    with open(_get_run_file(), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 class TranscriptLogger:
     """
-    Logs greeting + conversation turns to logs/session_{id}_{ts}.json.
-    No-op when TEST_LOGGING is not set.
+    Appends a new session entry to the shared test_run_*.json file.
+    Updates that entry in-place as greeting and turns arrive.
     """
 
     def __init__(self, session_id: str, role: str, domain: str, language: str, voice_label: str):
@@ -25,10 +61,9 @@ class TranscriptLogger:
         if not self.enabled:
             return
 
-        _LOGS_DIR.mkdir(exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.path = _LOGS_DIR / f"session_{session_id}_{ts}.json"
-        self._data: dict = {
+        run = _read()
+        self._idx = len(run["sessions"])
+        run["sessions"].append({
             "session_id": session_id,
             "started_at": datetime.now().isoformat(),
             "metadata": {
@@ -39,30 +74,31 @@ class TranscriptLogger:
             },
             "greeting": None,
             "turns":    [],
-        }
-        self._flush()
-        print(f"[TRANSCRIPT_LOG] Writing to {self.path}")
+        })
+        _write(run)
+        print(f"[TRANSCRIPT_LOG] Session #{self._idx + 1} — role={role} domain={domain} voice={voice_label}")
 
     def log_greeting(self, text: str) -> None:
         if not self.enabled:
             return
-        self._data["greeting"] = {"agent": text, "time": datetime.now().isoformat()}
-        self._flush()
+        run = _read()
+        run["sessions"][self._idx]["greeting"] = {
+            "agent": text,
+            "time":  datetime.now().isoformat(),
+        }
+        _write(run)
 
     def log_turn(self, turn: int, user_text: str, agent_text: str) -> None:
         if not self.enabled:
             return
-        self._data["turns"].append({
+        run = _read()
+        run["sessions"][self._idx]["turns"].append({
             "turn":  turn,
             "user":  user_text,
             "agent": agent_text,
             "time":  datetime.now().isoformat(),
         })
-        self._flush()
-
-    def _flush(self) -> None:
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, indent=2, ensure_ascii=False)
+        _write(run)
 
 
 class _NullLogger:
