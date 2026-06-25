@@ -315,9 +315,10 @@ async def _sarvam_attempt(audio_bytes: bytes, filename: str, api_key: str, langu
     headers = {"api-subscription-key": api_key}
     data = aiohttp.FormData()
     data.add_field("model", "saaras:v3")
-    data.add_field("language_code", "unknown")  # Always auto-detect; session lock is for routing only
+    data.add_field("language_code", "unknown")  # Always auto-detect; multilingual demo keeps hint open
     data.add_field("mode", "transcribe")
     data.add_field("file", audio_bytes, filename=filename, content_type="audio/wav")
+    print(f"[STT][Sarvam] → Sending  hint='unknown'  audio={len(audio_bytes)}B  file='{filename}'")
     try:
         async with session.post(url, headers=headers, data=data) as resp:
             body = await resp.text()
@@ -328,19 +329,22 @@ async def _sarvam_attempt(audio_bytes: bytes, filename: str, api_key: str, langu
                 except Exception:
                     payload = {}
                 text = (payload.get("transcript") or "").strip()
+                raw_sarvam_lang = payload.get("language_code", "")
+                print(f"[STT][Sarvam] ← Raw  transcript='{text[:60]}'  sarvam_lang='{raw_sarvam_lang}'")
                 lang = _normalize_lang_to_en_or_kn(
-                    detected_lang=payload.get("language_code", ""),
+                    detected_lang=raw_sarvam_lang,
                     transcript=text,
                 )
+                print(f"[STT][Sarvam] ✓ Final  lang='{lang}'")
                 return True, text, lang, "", "", False
             timed_out = resp.status == 408
-            print(f"[STT][Sarvam] \u274c HTTP {resp.status}: {body[:200]}")
+            print(f"[STT][Sarvam] ❌ HTTP {resp.status}: {body[:200]}")
             return False, "", "", f"http_{resp.status}", body[:400], timed_out
     except asyncio.TimeoutError:
-        print("[STT][Sarvam] \u274c Timeout")
+        print("[STT][Sarvam] ❌ Timeout")
         return False, "", "", "timeout", "", True
     except Exception as e:
-        print(f"[STT][Sarvam] \u274c Exception: {e}")
+        print(f"[STT][Sarvam] ❌ Exception: {e}")
         return False, "", "", "network_error", str(e), False
 
 

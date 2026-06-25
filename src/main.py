@@ -137,7 +137,11 @@ async def _send_greeting(ws: WebSocket, role: str, domain: str, language: str, s
 
     await _st(json.dumps({"type": "response_text", "text": text}))
     try:
+        first_chunk = True
         async for chunk in run_tts_stream_chunked(text, language=language, speaker=speaker, min_chunk_ms=200):
+            if first_chunk:
+                first_chunk = False
+                await _st(json.dumps({"type": "audio_start", "sample_rate": 16000}))
             await _sb(chunk)
     except Exception as e:
         print(f"[GREETING] TTS error: {e}")
@@ -162,6 +166,7 @@ async def demo_ws(websocket: WebSocket):
     voice_label   = _VOICE_LABEL_MAP.get(voice_id, "Khyra")
     tx_log        = None
     memory: list  = []
+    system_prompt: str = ""  # cached at init — role/domain/language don't change mid-session
     turns         = 0
     audio_buffer  = bytearray()
     session_start = time.time()
@@ -180,7 +185,7 @@ async def demo_ws(websocket: WebSocket):
             pass
 
     async def process_turn(pcm_bytes: bytes):
-        nonlocal memory, turns, role, domain, language, speaker, voice_label
+        nonlocal memory, turns, role, domain, language, speaker, voice_label, system_prompt
 
         turns += 1
         if turns > _MAX_TURNS_PER_SESSION:
@@ -192,7 +197,7 @@ async def demo_ws(websocket: WebSocket):
 
         # --- STT ---
         t0 = time.time()
-        wav = _pcm_to_wav(pcm_bytes)
+        wav = await asyncio.to_thread(_pcm_to_wav, pcm_bytes)  # offload CPU-bound conversion
         try:
             user_text, detected_lang = await asyncio.wait_for(
                 run_stt_http(wav, _SARVAM_API_KEY(), language_code=language, session_id=session_id, client_id="demo"),
@@ -218,8 +223,7 @@ async def demo_ws(websocket: WebSocket):
         if blocked:
             response_text = guard_resp
         else:
-            # --- LLM ---
-            system_prompt = get_system_prompt(role, domain, language, voice_label)
+            # --- LLM (uses cached system_prompt built at init) ---
             messages = [{"role": "system", "content": system_prompt}] + memory + [
                 {"role": "user", "content": user_text}
             ]
@@ -266,12 +270,18 @@ async def demo_ws(websocket: WebSocket):
         # --- TTS ---
         t2 = time.time()
         try:
+            first_chunk = True
             async for chunk in run_tts_stream_chunked(
                 response_text,
                 language=language,
                 speaker=speaker,
                 min_chunk_ms=200,
             ):
+                if first_chunk:
+                    first_chunk = False
+                    ttfa = time.time() - t0  # full pipeline: STT start → first audio byte
+                    print(f"[TTS] TTFA {ttfa:.3f}s (STT→first audio)  session={session_id}")
+                    await safe_send_text(json.dumps({"type": "audio_start", "sample_rate": 16000}))
                 await safe_send_bytes(chunk)
         except Exception as e:
             print(f"[WS:{session_id}] TTS error: {e}")
@@ -308,6 +318,8 @@ async def demo_ws(websocket: WebSocket):
                     speaker     = _resolve_speaker(voice_id)
                     voice_label = _VOICE_LABEL_MAP.get(voice_id, "Khyra")
                     initialized = True
+                    # Build system prompt once — role/domain/language don't change mid-session
+                    system_prompt = get_system_prompt(role, domain, language, voice_label)
                     tx_log      = make_logger(session_id, role, domain, language, voice_label)
                     print(f"[WS:{session_id}] Init: role={role} domain={domain} lang={language} speaker={speaker} voice={voice_label}")
                     await safe_send_text(json.dumps({"type": "ready", "session_id": session_id}))
