@@ -44,7 +44,13 @@ async def _get_http_session() -> aiohttp.ClientSession:
     async with _HTTP_SESSION_LOCK:
         if _HTTP_SESSION and not _HTTP_SESSION.closed:
             return _HTTP_SESSION
-        connector = aiohttp.TCPConnector(limit=20, limit_per_host=10, ttl_dns_cache=300)
+        connector = aiohttp.TCPConnector(
+            limit=20,
+            limit_per_host=10,
+            ttl_dns_cache=300,
+            keepalive_timeout=60,        # reuse TCP connection to api.sarvam.ai between TTS calls
+            enable_cleanup_closed=True,  # prevent stale half-closed sockets accumulating
+        )
         timeout = aiohttp.ClientTimeout(total=_REQUEST_TIMEOUT_SEC)
         _HTTP_SESSION = aiohttp.ClientSession(connector=connector, timeout=timeout)
     return _HTTP_SESSION
