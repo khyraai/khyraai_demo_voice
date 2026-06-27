@@ -141,7 +141,12 @@
     <div class="tagline">Live voice AI demo</div>
   </div>
 
-  <!-- ── Setup Screen ── -->
+  <div class="card" style="text-align: center; padding: 40px 20px;">
+    <h2 style="margin-bottom: 10px; color: var(--accent2);">Demo Temporarily Unavailable</h2>
+    <p style="color: var(--muted); font-size: 0.9rem;">We are currently performing maintenance. Please check back later.</p>
+  </div>
+
+  <!-- Setup Screen and Call Screen Commented Out for Now
   <div class="card" id="setup-screen">
 
     <div class="step-title"><span class="step-num">1</span>Choose a role</div>
@@ -169,7 +174,6 @@
     <button class="btn-call" id="start-btn" onclick="startCall()">📞 &nbsp;Start Call</button>
   </div>
 
-  <!-- ── Call Screen ── -->
   <div id="call-screen">
     <div class="call-header">
       <div class="call-role" id="call-role-label"></div>
@@ -191,6 +195,7 @@
     <button class="btn-end" onclick="endCall()" title="End call">📵</button>
     <div class="btn-end-label">End Call</div>
   </div>
+  -->
 
 </div>
 <div id="toast"></div>
@@ -634,7 +639,7 @@ function showToast(msg, dur=3000) {
   clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), dur);
 }
 
-boot();
+// boot();
 </script>
 </body>
 </html>
