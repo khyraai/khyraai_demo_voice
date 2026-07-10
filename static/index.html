@@ -137,7 +137,7 @@
 <div class="app">
 
   <div class="header">
-    <div class="logo">✦ Khyra AI</div>
+    <div class="logo">Khyra AI</div>
     <div class="tagline">Live voice AI demo</div>
   </div>
 
@@ -166,7 +166,7 @@
       </div>
     </div>
 
-    <button class="btn-call" id="start-btn" onclick="startCall()">📞 &nbsp;Start Call</button>
+    <button class="btn-call" id="start-btn" onclick="startCall()">Start Call</button>
   </div>
 
   <!-- ── Call Screen ── -->
@@ -178,7 +178,7 @@
 
     <div class="avatar-wrap">
       <div class="avatar-ring" id="avatar-ring"></div>
-      <div class="avatar-circle" id="avatar-circle">🤖</div>
+      <div class="avatar-circle" id="avatar-circle">AI</div>
     </div>
 
     <div class="call-status" id="call-status"><span class="highlight">Connecting…</span></div>
@@ -188,7 +188,7 @@
 
     <div class="transcript" id="transcript"></div>
 
-    <button class="btn-end" onclick="endCall()" title="End call">📵</button>
+    <button class="btn-end" onclick="endCall()" title="End call">X</button>
     <div class="btn-end-label">End Call</div>
   </div>
 
@@ -248,7 +248,7 @@ async function boot() {
 }
 
 /* ── Setup UI ───────────────────────────────────────────────────────── */
-const VOICE_EMOJIS = ['👩','👩','👩','👩','👩','👨','👨','👨','👨','👨'];
+const VOICE_EMOJIS = ['F','F','F','F','F','M','M','M','M','M'];
 function buildRoleGrid() {
   const el = document.getElementById('role-grid');
   config.roles.forEach(r => {
@@ -307,7 +307,7 @@ function buildVoiceGrid() {
   config.voices.forEach((v, i) => {
     const d = document.createElement('div');
     d.className = 'voice-card'; d.dataset.id = v.id;
-    d.innerHTML = `<div class="voice-avatar">${VOICE_EMOJIS[i]||'🗣️'}</div><div class="voice-name">${v.label}</div>`;
+    d.innerHTML = `<div class="voice-avatar">${VOICE_EMOJIS[i]||'V'}</div><div class="voice-name">${v.label}</div>`;
     d.onclick = () => selectVoice(v.id);
     el.appendChild(d);
   });
@@ -404,7 +404,7 @@ function handleMsg(msg) {
       startListening();
       break;
     case 'error':
-      showToast('⚠️ ' + msg.message, 4000);
+      showToast('[!] ' + msg.message, 4000);
       setStatus('Listening…');
       setAvatar('listening');
       aiSpeaking = false;
@@ -583,9 +583,9 @@ function setAvatar(state) {
   const ring   = document.getElementById('avatar-ring');
   circle.className = 'avatar-circle';
   ring.className   = 'avatar-ring';
-  if (state === 'speaking') { circle.classList.add('speaking'); ring.classList.add('active'); circle.textContent = '🤖'; }
-  else if (state === 'listening') { circle.classList.add('listening'); circle.textContent = '👂'; }
-  else { circle.textContent = '🤖'; }
+  if (state === 'speaking') { circle.classList.add('speaking'); ring.classList.add('active'); circle.textContent = 'AI'; }
+  else if (state === 'listening') { circle.classList.add('listening'); circle.textContent = '(mic)'; }
+  else { circle.textContent = 'AI'; }
 }
 
 function setStatus(html) {

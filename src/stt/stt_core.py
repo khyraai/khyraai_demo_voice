@@ -335,16 +335,16 @@ async def _sarvam_attempt(audio_bytes: bytes, filename: str, api_key: str, langu
                     detected_lang=raw_sarvam_lang,
                     transcript=text,
                 )
-                print(f"[STT][Sarvam] ✓ Final  lang='{lang}'")
+                print(f"[STT][Sarvam] OK Final  lang='{lang}'")
                 return True, text, lang, "", "", False
             timed_out = resp.status == 408
-            print(f"[STT][Sarvam] ❌ HTTP {resp.status}: {body[:200]}")
+            print(f"[STT][Sarvam] ERROR HTTP {resp.status}: {body[:200]}")
             return False, "", "", f"http_{resp.status}", body[:400], timed_out
     except asyncio.TimeoutError:
-        print("[STT][Sarvam] ❌ Timeout")
+        print("[STT][Sarvam] ERROR Timeout")
         return False, "", "", "timeout", "", True
     except Exception as e:
-        print(f"[STT][Sarvam] ❌ Exception: {e}")
+        print(f"[STT][Sarvam] ERROR Exception: {e}")
         return False, "", "", "network_error", str(e), False
 
 

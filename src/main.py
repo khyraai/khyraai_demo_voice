@@ -240,7 +240,7 @@ async def demo_ws(websocket: WebSocket):
                     ),
                     timeout=20.0,
                 )
-                response_text = completion.choices[0].message.content.strip()
+                response_text = (completion.choices[0].message.content or "").strip()
                 # Strip complete <think>...</think> blocks (reasoning models like sarvam-m)
                 response_text = re.sub(r"<think>[\s\S]*?</think>\s*", "", response_text, flags=re.IGNORECASE).strip()
                 # Strip incomplete/truncated <think> block (no closing tag — token limit hit mid-think)
