@@ -1,18 +1,18 @@
 """
 llm.py — LLM Pool Manager
 
-Drop-in replacement for groq.AsyncGroq with:
-  - Round-robin across GROQ_API_KEYS (comma-separated in .env)
+Drop-in replacement for openai.AsyncOpenAI (via OpenRouter) with:
+  - Round-robin across OPENROUTER_API_KEYS (comma-separated in .env)
   - Per-key asyncio.Semaphore concurrency cap
   - Retry on 429 / rate-limit errors with automatic key rotation
   - Structured metrics: latency, token usage, cost (USD), per-key stats
   - get_llm_metrics_snapshot() for /llm/metrics endpoint
 
-Usage (drop-in for groq_client):
+Usage (drop-in for llm_pool):
     from llm import llm_pool
     response = await llm_pool.chat.completions.create(model=..., messages=..., ...)
 
-Custom kwargs stripped before Groq call (for metrics only):
+Custom kwargs stripped before OpenRouter call (for metrics only):
     _agent_name  (str) — e.g. "agent1", "agent2_kn"
     _client_id   (str) — tenant / caller identifier
 """
@@ -24,7 +24,6 @@ import itertools
 import threading
 from typing import Any
 
-from groq import AsyncGroq
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
@@ -34,9 +33,10 @@ load_dotenv()
 # -----------------------------------------------------------------------
 # Configuration — all overridable via .env
 # -----------------------------------------------------------------------
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").strip().lower()  # "groq" | "sarvam"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openrouter").strip().lower()  # "openrouter" | "sarvam"
 
-_SARVAM_BASE_URL = "https://api.sarvam.ai/v1"
+_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+_SARVAM_BASE_URL     = "https://api.sarvam.ai/v1"
 
 
 def _load_keys() -> list:
@@ -45,30 +45,32 @@ def _load_keys() -> list:
         if not key:
             raise ValueError("LLM_PROVIDER=sarvam but SARVAM_API_KEY is not set in .env")
         return [key]
-    # groq (default)
-    raw = os.getenv("GROQ_API_KEYS", "").strip()
+    # openrouter (default)
+    raw = os.getenv("OPENROUTER_API_KEYS", "").strip()
     if raw:
         keys = [k.strip() for k in raw.split(",") if k.strip()]
         if keys:
             return keys
-    single = os.getenv("GROQ_API_KEY", "").strip()
+    single = os.getenv("OPENROUTER_API_KEY", "").strip()
     if single:
         return [single]
     raise ValueError(
-        "No Groq API keys found. Set GROQ_API_KEYS (comma-separated) or GROQ_API_KEY in .env"
+        "No OpenRouter API keys found. Set OPENROUTER_API_KEYS (comma-separated) "
+        "or OPENROUTER_API_KEY in .env"
     )
 
 
 def _default_model() -> str:
     if LLM_PROVIDER == "sarvam":
         return os.getenv("LLM_MODEL_SARVAM", "sarvam-m")
-    return os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    return os.getenv("LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
 
 
 def _make_client(api_key: str):
     if LLM_PROVIDER == "sarvam":
         return AsyncOpenAI(base_url=_SARVAM_BASE_URL, api_key=api_key)
-    return AsyncGroq(api_key=api_key)
+    # openrouter — uses OpenAI-compatible API
+    return AsyncOpenAI(base_url=_OPENROUTER_BASE_URL, api_key=api_key)
 
 
 LLM_MODEL                  = _default_model()
@@ -159,9 +161,10 @@ class _Chat:
 # -----------------------------------------------------------------------
 class LLMPool:
     """
-    Round-robin AsyncGroq pool with per-key semaphore and retry-on-429.
+    Round-robin OpenRouter pool with per-key semaphore and retry-on-429.
 
-    Identical interface to groq.AsyncGroq — pass anywhere groq_client is expected:
+    Uses openai.AsyncOpenAI pointed at OpenRouter's base URL — identical
+    interface to the old groq.AsyncGroq; pass anywhere groq_client is expected:
         await llm_pool.chat.completions.create(model=..., messages=..., ...)
     """
 
@@ -173,7 +176,7 @@ class LLMPool:
         self._lock    = asyncio.Lock()
         self.chat     = _Chat(self)
         print(
-            f"[LLM Pool] ✅ provider={LLM_PROVIDER} | {len(self._keys)} key(s) | "
+            f"[LLM Pool] [OK] provider={LLM_PROVIDER} | {len(self._keys)} key(s) | "
             f"{LLM_MAX_CONCURRENT_PER_KEY} concurrent/key | "
             f"max retries={LLM_MAX_RETRIES} | model={LLM_MODEL}"
         )
@@ -235,9 +238,9 @@ class LLMPool:
 
                 if is_rl:
                     rl_hits += 1
-                    print(f"[LLM Pool] ⚡ 429 rate-limit on key[{ki}] — rotating to next key")
+                    print(f"[LLM Pool] [429] rate-limit on key[{ki}] -- rotating to next key")
                 else:
-                    print(f"[LLM Pool] ❌ Error key[{ki}] attempt {attempt + 1}/{max_att}: {exc}")
+                    print(f"[LLM Pool] [ERR] Error key[{ki}] attempt {attempt + 1}/{max_att}: {exc}")
 
                 retries += 1
                 ki = await self._next()
